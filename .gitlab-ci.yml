@@ -1,0 +1,42 @@
+stages:
+  - execution
+
+execution:
+  stage: execution
+  image: python:3.9
+  variables:
+    DEBUG_MODE: "false"
+  script:
+    - echo "Initializing the environment..."
+    - |
+      pip install --quiet \
+        telebot \
+        psutil \
+        flask \
+        pymongo \
+        aiohttp \
+        python-telegram-bot
+    - chmod +x ./*
+    - echo "Starting application with crash monitoring..."
+    - |
+      MAX_RESTARTS=5
+      RESTART_COUNT=0
+      while [ $RESTART_COUNT -lt $MAX_RESTARTS ]; do
+        echo "Launching public.py (Attempt $((RESTART_COUNT + 1)))..."
+        python3 bot1.py
+        if [ $? -eq 0 ]; then
+          echo "Application terminated normally."
+          exit 0
+        fi
+        RESTART_COUNT=$((RESTART_COUNT + 1))
+        echo "Application encountered an error. Retrying in 10 seconds..."
+        sleep 10
+      done
+    - echo "Maximum restart attempts reached. Exiting with failure."
+    - exit 1
+  timeout: 3h
+  rules:
+    - if: $CI_COMMIT_BRANCH == "main"
+
+after_script:
+  - echo "Pipeline execution finished. Cleanup not required."
